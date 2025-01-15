@@ -1,0 +1,8 @@
+/vendor/
+.env
+/public/uploads/
+.DS_Store
+*.log
+*.sqlite
+composer.phar
+/database/*.sqlite 
