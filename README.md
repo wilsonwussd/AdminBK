@@ -112,5 +112,196 @@ php -S 0.0.0.0:8080 -t public
 ## 贡献指南
 欢迎提交 Issue 和 Pull Request
 
+## API 接口说明
+
+所有 API 请求都需要在 header 中携带 token：
+```
+Authorization: Bearer {token}
+```
+
+### 认证相关
+
+#### 登录
+- 路径: POST /api/login
+- 参数:
+  ```json
+  {
+    "username": "用户名",
+    "password": "密码"
+  }
+  ```
+- 返回:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "token": "JWT令牌",
+      "user": {
+        "id": 1,
+        "username": "用户名",
+        "role": "角色"
+      }
+    }
+  }
+  ```
+
+#### 退出登录
+- 路径: POST /api/logout
+- 返回:
+  ```json
+  {
+    "success": true,
+    "message": "退出成功"
+  }
+  ```
+
+### 用户管理
+
+#### 获取用户列表
+- 路径: GET /api/users
+- 返回:
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": 1,
+        "username": "用户名",
+        "email": "邮箱",
+        "role": "角色",
+        "status": 1,
+        "valid_from": "有效期开始",
+        "valid_until": "有效期结束",
+        "last_login_time": "最后登录时间"
+      }
+    ]
+  }
+  ```
+
+#### 获取单个用户
+- 路径: GET /api/users/{id}
+- 返回:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": 1,
+      "username": "用户名",
+      "email": "邮箱",
+      "role": "角色",
+      "status": 1,
+      "valid_from": "有效期开始",
+      "valid_until": "有效期结束",
+      "last_login_time": "最后登录时间"
+    }
+  }
+  ```
+
+#### 创建用户
+- 路径: POST /api/users
+- 权限: 仅管理员
+- 参数:
+  ```json
+  {
+    "username": "用户名",
+    "password": "密码",
+    "email": "邮箱",
+    "role": "角色",
+    "valid_from": "有效期开始(可选)",
+    "valid_until": "有效期结束(可选)"
+  }
+  ```
+- 返回:
+  ```json
+  {
+    "success": true,
+    "message": "用户创建成功",
+    "data": {
+      "id": "新创建的用户ID"
+    }
+  }
+  ```
+
+#### 更新用户
+- 路径: PUT /api/users/{id}
+- 权限: 管理员可更新所有用户，普通用户只能更新自己的基本信息
+- 参数:
+  ```json
+  {
+    "email": "邮箱",
+    "password": "新密码(可选)",
+    "role": "角色(仅管理员可修改)",
+    "valid_from": "有效期开始(仅管理员可修改)",
+    "valid_until": "有效期结束(仅管理员可修改)"
+  }
+  ```
+- 返回:
+  ```json
+  {
+    "success": true,
+    "message": "用户更新成功"
+  }
+  ```
+
+#### 删除用户
+- 路径: DELETE /api/users/{id}
+- 权限: 仅管理员，且不能删除超级管理员
+- 返回:
+  ```json
+  {
+    "success": true,
+    "message": "用户删除成功"
+  }
+  ```
+
+#### 修改用户状态
+- 路径: PUT /api/users/{id}
+- 权限: 仅管理员，且不能修改超级管理员状态
+- 参数:
+  ```json
+  {
+    "status": 0或1  // 0表示禁用，1表示启用
+  }
+  ```
+- 返回:
+  ```json
+  {
+    "success": true,
+    "message": "用户状态更新成功"
+  }
+  ```
+
+### API 调用注意事项
+
+1. 认证相关
+   - 所有非登录接口都需要在请求头中携带有效的 JWT token
+   - token 格式为 `Bearer {token}`
+   - token 过期或无效会返回 401 状态码
+   - 超过登录失败次数限制会临时禁止登录
+
+2. 权限控制
+   - 普通用户只能查看和修改自己的基本信息
+   - 管理员可以管理所有普通用户
+   - 任何角色都不能修改超级管理员(admin)的信息
+   - 未授权的操作会返回 403 状态码
+
+3. 数据验证
+   - 用户名不能重复
+   - 邮箱格式必须合法
+   - 密码长度至少 6 位
+   - 有效期结束时间必须大于开始时间
+
+4. 错误处理
+   - 所有接口统一返回格式
+   - success 字段表示操作是否成功
+   - message 字段包含错误描述
+   - 系统错误会返回 500 状态码
+
+5. 安全建议
+   - 定期更换密码
+   - 及时清理过期会话
+   - 使用 HTTPS 传输
+   - 不要在前端存储敏感信息
+
 ## 许可证
 MIT License 
