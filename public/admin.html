@@ -259,94 +259,84 @@
 
         // 获取当前登录用户信息
         function getCurrentUser() {
-            const userStr = localStorage.getItem('user');
-            if (userStr) {
-                try {
-                    const user = JSON.parse(userStr);
-                    // 确保至少有基本的用户信息
-                    if (!user.username) {
-                        console.error('用户信息不完整');
-                        return null;
-                    }
-                    console.log('当前用户信息:', user);
-                    return user;
-                } catch (e) {
-                    console.error('解析用户信息失败:', e);
-                    return null;
-                }
+            const token = localStorage.getItem('token');
+            if (!token) return null;
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                return JSON.parse(window.atob(base64));
+            } catch (e) {
+                return null;
             }
-            console.log('未找到用户信息');
-            return null;
+        }
+
+        // 格式化日期时间
+        function formatDateTime(dateTimeStr) {
+            if (!dateTimeStr) {
+                return '从未登录';
+            }
+            const date = new Date(dateTimeStr);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
         }
 
         // 加载用户列表
         async function loadUsers() {
             try {
-                const data = await apiRequest('/api/users');
-                if (data.success) {
-                    const tbody = document.querySelector('#userTable tbody');
-                    tbody.innerHTML = '';
+                const response = await apiRequest('/api/users');
+                if (response.success) {
                     const currentUser = getCurrentUser();
+                    let users = response.data;
                     
-                    // 根据当前用户角色控制"添加用户"按钮的显示
-                    const addUserBtn = document.querySelector('#addUserBtn');
-                    if (addUserBtn) {
-                        addUserBtn.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+                    // 如果不是管理员，只显示自己的信息
+                    if (currentUser && currentUser.role !== 'admin') {
+                        users = users.filter(user => user.id === currentUser.user_id);
                     }
-                    
-                    data.data.forEach(user => {
-                        const isAdminUser = user.username === 'admin';
-                        const isCurrentUser = currentUser && user.id === currentUser.id;
-                        const canEdit = currentUser.role === 'admin' || isCurrentUser;
-                        const canDelete = currentUser.role === 'admin' && !isAdminUser && !isCurrentUser;
-                        
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
+
+                    const tbody = document.querySelector('#userTable tbody');
+                    tbody.innerHTML = users.map(user => `
+                        <tr>
                             <td>${user.id}</td>
                             <td>${user.username}</td>
                             <td>${user.email}</td>
-                            <td><span class="badge bg-info">${user.role || '普通用户'}</span></td>
+                            <td>${user.role}</td>
                             <td>
-                                ${isAdminUser ? 
-                                    `<button class="btn btn-sm btn-success" disabled>
-                                        <i class="bi bi-unlock"></i>
-                                        永久启用
-                                    </button>` :
-                                    `<button class="btn btn-sm ${user.status ? 'btn-success' : 'btn-danger'}" 
-                                            ${currentUser.role !== 'admin' ? 'disabled' : ''}
-                                            onclick="toggleUserStatus(${user.id}, ${user.status})">
-                                        <i class="bi ${user.status ? 'bi-unlock' : 'bi-lock'}"></i>
-                                        ${user.status ? '已启用' : '已禁用'}
-                                    </button>`
-                                }
+                                <button class="btn ${user.status ? 'btn-success' : 'btn-danger'} btn-sm" 
+                                        onclick="toggleUserStatus(${user.id})"
+                                        ${currentUser.role !== 'admin' ? 'disabled' : ''}>
+                                    ${user.status ? '已启用' : '已禁用'}
+                                </button>
                             </td>
-                            <td>${isAdminUser ? '<span class="badge bg-success">永久有效</span>' : getValidityStatusDisplay(user)}</td>
-                            <td>${user.last_login_time || '从未登录'}</td>
+                            <td>${getValidityStatusDisplay(user)}</td>
+                            <td>${formatDateTime(user.last_login_time)}</td>
                             <td>
-                                ${canEdit ? 
-                                    `<button class="btn btn-primary btn-sm" onclick="editUser(${user.id})">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>` : 
-                                    `<button class="btn btn-primary btn-sm" disabled>
-                                        <i class="bi bi-pencil"></i>
-                                    </button>`
-                                }
-                                ${canDelete ? 
-                                    `<button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">
-                                        <i class="bi bi-trash"></i>
-                                    </button>` : 
-                                    ''
-                                }
+                                <button class="btn btn-primary btn-sm" onclick="editUser(${user.id})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                ${currentUser.role === 'admin' ? `
+                                <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                ` : ''}
                             </td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
-                } else {
-                    showError(data.message);
+                        </tr>
+                    `).join('');
+
+                    // 根据角色控制添加用户按钮的显示
+                    const addUserBtn = document.getElementById('addUserBtn');
+                    if (addUserBtn) {
+                        addUserBtn.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+                    }
                 }
             } catch (error) {
-                console.error('Error loading users:', error);
-                showError('加载用户列表失败');
+                console.error('加载用户列表失败:', error);
             }
         }
 
@@ -362,112 +352,90 @@
         // 编辑用户
         async function editUser(userId) {
             try {
-                const currentUser = getCurrentUser();
                 const response = await apiRequest(`/api/users/${userId}`);
-                
                 if (response.success) {
-                    const data = response.data;
+                    const user = response.data;
+                    const currentUser = getCurrentUser();
                     
-                    // 检查权限
-                    if (currentUser.role !== 'admin' && currentUser.id !== data.id) {
-                        showError('您没有权限编辑其他用户的信息');
-                        return;
-                    }
-                    
-                    const isAdminUser = data.username === 'admin';
-                    const isCurrentUser = currentUser.id === data.id;
-                    
-                    document.getElementById('userId').value = data.id;
-                    document.getElementById('userUsername').value = data.username;
-                    document.getElementById('userEmail').value = data.email;
+                    // 设置表单字段
+                    document.getElementById('userId').value = user.id;
+                    document.getElementById('userUsername').value = user.username;
+                    document.getElementById('userEmail').value = user.email;
                     document.getElementById('userPassword').value = '';
-                    document.getElementById('userRole').value = data.role || 'user';
-                    
-                    // 控制字段的可编辑性
-                    document.getElementById('userUsername').disabled = isAdminUser || isCurrentUser;
-                    document.getElementById('userRole').disabled = currentUser.role !== 'admin' || isAdminUser;
-                    document.getElementById('validFrom').disabled = isAdminUser;
-                    document.getElementById('validUntil').disabled = isAdminUser;
-                    
-                    if (!isAdminUser) {
-                        document.getElementById('validFrom').value = data.valid_from || '';
-                        document.getElementById('validUntil').value = data.valid_until || '';
+                    document.getElementById('userRole').value = user.role;
+                    document.getElementById('validFrom').value = user.valid_from || '';
+                    document.getElementById('validUntil').value = user.valid_until || '';
+
+                    // 如果不是管理员，禁用这些字段
+                    if (currentUser.role !== 'admin') {
+                        document.getElementById('userRole').disabled = true;
+                        document.getElementById('validFrom').disabled = true;
+                        document.getElementById('validUntil').disabled = true;
+                    } else {
+                        document.getElementById('userRole').disabled = false;
+                        document.getElementById('validFrom').disabled = false;
+                        document.getElementById('validUntil').disabled = false;
                     }
-                    
+
+                    // 显示模态框
                     document.getElementById('modalTitle').textContent = '编辑用户';
                     document.getElementById('userPassword').required = false;
-                    
-                    // 更新密码字段的提示文本
-                    const passwordHelpText = document.querySelector('#userPassword + small');
-                    if (passwordHelpText) {
-                        passwordHelpText.textContent = '如需修改密码请输入新密码，不修改请留空';
-                    }
-                    
                     new bootstrap.Modal(document.getElementById('userModal')).show();
-                } else {
-                    showError(response.message);
                 }
             } catch (error) {
-                console.error('Error loading user details:', error);
-                showError('加载用户详情失败');
+                console.error('获取用户信息失败:', error);
+                showError('获取用户信息失败');
             }
         }
 
         // 保存用户
         async function saveUser() {
             const userId = document.getElementById('userId').value;
-            const username = document.getElementById('userUsername').value;
-            const email = document.getElementById('userEmail').value;
-            const password = document.getElementById('userPassword').value;
-            const role = document.getElementById('userRole').value;
-            const validFrom = document.getElementById('validFrom').value;
-            const validUntil = document.getElementById('validUntil').value;
-
             const currentUser = getCurrentUser();
             
+            // 构建要更新的数据
+            const data = {
+                username: document.getElementById('userUsername').value,
+                email: document.getElementById('userEmail').value
+            };
+
+            // 如果输入了密码，则包含密码
+            const password = document.getElementById('userPassword').value;
+            if (password) {
+                data.password = password;
+            }
+
+            // 只有管理员可以修改这些字段
+            if (currentUser.role === 'admin') {
+                data.role = document.getElementById('userRole').value;
+                data.valid_from = document.getElementById('validFrom').value || null;
+                data.valid_until = document.getElementById('validUntil').value || null;
+            }
+
             try {
-                let data = {
-                    email,
-                    username
-                };
-
-                // 如果是管理员，可以修改更多字段
-                if (currentUser.role === 'admin') {
-                    data = {
-                        ...data,
-                        role,
-                        valid_from: validFrom || null,
-                        valid_until: validUntil || null
-                    };
-                }
-
-                // 如果提供了密码，添加到请求数据中
-                if (password) {
-                    data.password = password;
-                }
-
-                let url = '/api/users';
-                let method = 'POST';
+                const url = userId ? `/api/users/${userId}` : '/api/users';
+                const method = userId ? 'PUT' : 'POST';
                 
-                if (userId) {
-                    url = `/api/users/${userId}`;
-                    method = 'PUT';
-                }
-
                 const response = await apiRequest(url, {
                     method: method,
                     body: JSON.stringify(data)
                 });
 
                 if (response.success) {
-                    $('#userModal').modal('hide');
+                    // 关闭模态框
+                    const userModal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
+                    userModal.hide();
+                    
+                    // 重新加载用户列表
                     loadUsers();
+                    
                     showSuccess(userId ? '用户更新成功' : '用户创建成功');
                 } else {
                     showError(response.message || '保存失败');
                 }
             } catch (error) {
-                showError(error.message || '保存失败');
+                console.error('保存用户失败:', error);
+                showError('操作失败：' + error.message);
             }
         }
 
@@ -522,7 +490,7 @@
         }
 
         // 切换用户状态
-        async function toggleUserStatus(userId, currentStatus) {
+        async function toggleUserStatus(userId) {
             try {
                 const user = await apiRequest(`/api/users/${userId}`);
                 
@@ -532,7 +500,7 @@
                     return;
                 }
                 
-                const newStatus = currentStatus === 1 ? 0 : 1;
+                const newStatus = user.data.status === 1 ? 0 : 1;
                 const data = await apiRequest(`/api/users/${userId}`, {
                     method: 'PUT',
                     body: JSON.stringify({ status: newStatus })
