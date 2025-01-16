@@ -305,3 +305,330 @@ Authorization: Bearer {token}
 
 ## 许可证
 MIT License 
+
+## 项目部署信息
+
+### 访问地址
+
+- 前端页面: https://xxzcqrmtfyhm.sealoshzh.site/login.html
+- 后端接口: https://xxzcqrmtfyhm.sealoshzh.site/api
+
+### 测试账号
+
+1. 超级管理员账号
+   - 用户名: admin
+   - 密码: admin123
+   - 权限: 所有权限
+
+2. 普通用户账号
+   - 用户名: test123  
+   - 密码: test123
+   - 权限: 基础查看权限
+
+### 接口文档
+
+#### 认证相关
+
+1. 登录接口
+```
+POST /api/login
+Content-Type: application/json
+
+请求体:
+{
+    "username": "用户名",
+    "password": "密码"
+}
+
+响应:
+{
+    "success": true,
+    "data": {
+        "token": "JWT令牌",
+        "user": {
+            "id": 1,
+            "username": "用户名",
+            "role": "角色",
+            "permissions": ["权限1", "权限2"]
+        }
+    }
+}
+```
+
+2. 登出接口
+```
+POST /api/logout
+Authorization: Bearer {token}
+
+响应:
+{
+    "success": true,
+    "message": "登出成功"
+}
+```
+
+#### 用户管理
+
+1. 获取用户列表
+```
+GET /api/users
+Authorization: Bearer {token}
+
+响应:
+{
+    "success": true,
+    "data": [
+        {
+            "id": 1,
+            "username": "用户名",
+            "email": "邮箱",
+            "role": "角色",
+            "status": 1,
+            "created_at": "创建时间"
+        }
+    ]
+}
+```
+
+2. 获取单个用户
+```
+GET /api/users/{id}
+Authorization: Bearer {token}
+
+响应:
+{
+    "success": true,
+    "data": {
+        "id": 1,
+        "username": "用户名",
+        "email": "邮箱",
+        "role": "角色",
+        "status": 1
+    }
+}
+```
+
+3. 创建用户
+```
+POST /api/users
+Authorization: Bearer {token}
+Content-Type: application/json
+
+请求体:
+{
+    "username": "用户名",
+    "password": "密码",
+    "email": "邮箱",
+    "role": "角色"
+}
+
+响应:
+{
+    "success": true,
+    "message": "用户创建成功"
+}
+```
+
+4. 更新用户
+```
+PUT /api/users/{id}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+请求体:
+{
+    "username": "用户名",
+    "email": "邮箱",
+    "role": "角色",
+    "status": 1
+}
+
+响应:
+{
+    "success": true,
+    "message": "用户更新成功"
+}
+```
+
+5. 删除用户
+```
+DELETE /api/users/{id}
+Authorization: Bearer {token}
+
+响应:
+{
+    "success": true,
+    "message": "用户删除成功"
+}
+```
+
+### 开发注意事项
+
+1. 权限控制
+   - 所有接口请求需要在 Header 中携带 token
+   - 超级管理员拥有所有权限
+   - 普通用户只能查看和修改自己的信息
+
+2. 错误处理
+   - 接口统一返回格式:
+     ```json
+     {
+         "success": false,
+         "message": "错误信息"
+     }
+     ```
+   - HTTP 状态码说明:
+     - 200: 请求成功
+     - 400: 请求参数错误
+     - 401: 未登录或 token 失效
+     - 403: 权限不足
+     - 404: 资源不存在
+     - 500: 服务器内部错误
+
+3. 安全建议
+   - 定期更换密码
+   - 使用 HTTPS 进行通信
+   - 妥善保管 token
+   - 及时登出未使用的会话 
+
+## 在线部署信息
+
+### 系统访问地址
+
+1. 前端页面
+   - 登录页面: https://xxzcqrmtfyhm.sealoshzh.site/login.html
+   - 管理页面: https://xxzcqrmtfyhm.sealoshzh.site/admin.html
+
+2. 后端接口
+   - 基础地址: https://xxzcqrmtfyhm.sealoshzh.site/api
+   - 接口文档: https://xxzcqrmtfyhm.sealoshzh.site/api/docs (如果启用了 Swagger)
+
+### 开发测试账号
+
+1. 超级管理员账号 (用于系统管理)
+   - 用户名: admin
+   - 密码: admin123
+   - 权限: 所有权限（用户管理、角色管理、权限分配等）
+   - 特点: 
+     * 账号永久有效
+     * 不可被删除或禁用
+     * 可以管理其他所有用户
+
+2. 普通测试账号 (用于功能测试)
+   - 用户名: test123
+   - 密码: test123
+   - 权限: 基础查看权限
+   - 特点:
+     * 只能查看和修改自己的信息
+     * 不能修改角色和状态
+     * 适合测试普通用户权限
+
+### 前端开发指南
+
+1. 接口认证
+   ```javascript
+   // 登录后获取 token
+   const token = response.data.token;
+   
+   // 设置请求头
+   const headers = {
+     'Authorization': `Bearer ${token}`,
+     'Content-Type': 'application/json'
+   };
+   
+   // 发起请求示例
+   fetch('/api/users', {
+     headers: headers
+   })
+   .then(response => response.json())
+   .then(data => console.log(data));
+   ```
+
+2. 错误处理
+   ```javascript
+   // 统一错误处理
+   function handleApiError(error) {
+     if (error.response) {
+       switch (error.response.status) {
+         case 401:
+           // 未登录或 token 过期
+           redirectToLogin();
+           break;
+         case 403:
+           // 权限不足
+           showError('您没有权限执行此操作');
+           break;
+         default:
+           showError(error.response.data.message || '操作失败');
+       }
+     }
+   }
+   ```
+
+3. 用户权限判断
+   ```javascript
+   // 判断是否为管理员
+   function isAdmin(user) {
+     return user.role === 'admin';
+   }
+   
+   // 判断是否可以编辑用户
+   function canEditUser(currentUser, targetUser) {
+     return isAdmin(currentUser) || currentUser.id === targetUser.id;
+   }
+   ```
+
+### 开发环境配置
+
+1. 本地开发
+   ```bash
+   # 克隆项目
+   git clone https://github.com/wilsonwussd/AdminBK.git
+   
+   # 安装依赖
+   composer install
+   
+   # 初始化数据库
+   php database/init.php
+   
+   # 启动开发服务器
+   php -S 0.0.0.0:8080 -t public
+   ```
+
+2. 接口测试
+   ```bash
+   # 登录测试
+   curl -X POST https://xxzcqrmtfyhm.sealoshzh.site/api/login \
+     -H "Content-Type: application/json" \
+     -d '{"username":"test123","password":"test123"}'
+   
+   # 获取用户列表 (需要 token)
+   curl https://xxzcqrmtfyhm.sealoshzh.site/api/users \
+     -H "Authorization: Bearer {your_token}"
+   ```
+
+### 注意事项
+
+1. 安全性
+   - 所有请求必须使用 HTTPS
+   - 不要在前端存储敏感信息
+   - 及时清理过期的 token
+   - 使用 try-catch 处理所有 API 请求
+
+2. 性能优化
+   - 合理使用缓存
+   - 避免频繁请求
+   - 批量操作使用事务
+   - 大量数据使用分页
+
+3. 开发建议
+   - 遵循 RESTful API 规范
+   - 使用 ESLint 保持代码风格
+   - 编写详细的注释
+   - 保持代码简洁可维护
+
+4. 常见问题
+   - token 过期处理
+   - 跨域请求配置
+   - 并发请求处理
+   - 异常状态恢复 
