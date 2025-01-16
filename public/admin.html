@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 250px;
+            min-height: 100vh;
+            background-color: #343a40;
+            color: white;
+            position: fixed;
+            left: 0;
+            top: 0;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .nav-link {
+            color: rgba(255,255,255,.8);
+            padding: 10px 20px;
+        }
+        .nav-link:hover {
+            color: white;
+            background-color: rgba(255,255,255,.1);
+        }
+        .nav-link.active {
+            background-color: rgba(255,255,255,.2);
+        }
+        .table th {
+            background-color: #f8f9fa;
+        }
+        .user-info {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,.1);
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="d-flex">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <div class="user-info">
+                <i class="bi bi-person-circle"></i>
+                欢迎，<span id="currentUser"></span>
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#">
+                        <i class="bi bi-people"></i> 用户管理
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="logout()">
+                        <i class="bi bi-box-arrow-right"></i> 退出登录
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 主要内容区域 -->
+        <div class="main-content flex-grow-1">
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>用户管理</h2>
+                    <button class="btn btn-primary" onclick="showAddUserModal()">
+                        <i class="bi bi-plus"></i> 添加用户
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="userTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>用户名</th>
+                                        <th>邮箱</th>
+                                        <th>角色</th>
+                                        <th>状态</th>
+                                        <th>有效期状态</th>
+                                        <th>最后登录时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户表单模态框 -->
+    <div class="modal fade" id="userModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">添加用户</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="userForm">
+                        <input type="hidden" id="userId">
+                        <div class="mb-3">
+                            <label for="userUsername" class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="userUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="userEmail" class="form-label">邮箱</label>
+                            <input type="email" class="form-control" id="userEmail" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="userPassword" class="form-label">密码</label>
+                            <input type="password" class="form-control" id="userPassword">
+                            <small class="text-muted">编辑用户时如不修改密码请留空</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="userRole" class="form-label">角色</label>
+                            <select class="form-select" id="userRole">
+                                <option value="user">普通用户</option>
+                                <option value="admin">管理员</option>
+                                <option value="editor">编辑</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">账号有效期</label>
+                            <div class="row">
+                                <div class="col">
+                                    <label for="validFrom" class="form-label">开始日期</label>
+                                    <input type="date" class="form-control" id="validFrom">
+                                </div>
+                                <div class="col">
+                                    <label for="validUntil" class="form-label">结束日期</label>
+                                    <input type="date" class="form-control" id="validUntil">
+                                </div>
+                            </div>
+                            <small class="text-muted">留空表示永久有效</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveUser()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局 API 请求函数
+        async function apiRequest(url, options = {}) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const defaultOptions = {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            const response = await fetch(url, { ...defaultOptions, ...options });
+            const data = await response.json();
+
+            if (response.status === 401 || data.message === 'Token已失效，请重新登录') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            return data;
+        }
+
+        // 检查认证状态
+        async function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            try {
+                const data = await apiRequest('/api/users');
+                if (!data.success) {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                console.error('Authentication check failed:', error);
+                window.location.href = '/login.html';
+            }
+        }
+
+        // 获取当前登录用户信息
+        function getCurrentUser() {
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                try {
+                    return JSON.parse(userStr);
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        // 加载用户列表
+        async function loadUsers() {
+            try {
+                const data = await apiRequest('/api/users');
+                if (data.success) {
+                    const tbody = document.querySelector('#userTable tbody');
+                    tbody.innerHTML = '';
+                    const currentUser = getCurrentUser();
+                    
+                    data.data.forEach(user => {
+                        // 判断是否为超级管理员账号
+                        const isAdminUser = user.username === 'admin';
+                        const isCurrentUserAdmin = currentUser && currentUser.username === 'admin';
+                        
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.email}</td>
+                            <td><span class="badge bg-info">${user.role || '普通用户'}</span></td>
+                            <td>
+                                ${isAdminUser ? 
+                                    `<button class="btn btn-sm btn-success" disabled>
+                                        <i class="bi bi-unlock"></i>
+                                        永久启用
+                                    </button>` :
+                                    `<button class="btn btn-sm ${user.status ? 'btn-success' : 'btn-danger'}" 
+                                            onclick="toggleUserStatus(${user.id}, ${user.status})">
+                                        <i class="bi ${user.status ? 'bi-unlock' : 'bi-lock'}"></i>
+                                        ${user.status ? '已启用' : '已禁用'}
+                                    </button>`
+                                }
+                            </td>
+                            <td>${isAdminUser ? '<span class="badge bg-success">永久有效</span>' : getValidityStatusDisplay(user)}</td>
+                            <td>${user.last_login_time || '从未登录'}</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" onclick="editUser(${user.id})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                ${(!isAdminUser || !isCurrentUserAdmin) ? 
+                                    `<button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">
+                                        <i class="bi bi-trash"></i>
+                                    </button>` : 
+                                    ''
+                                }
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showError('加载用户列表失败');
+            }
+        }
+
+        // 显示添加用户模态框
+        function showAddUserModal() {
+            document.getElementById('modalTitle').textContent = '添加用户';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('userPassword').required = true;
+            new bootstrap.Modal(document.getElementById('userModal')).show();
+        }
+
+        // 编辑用户
+        async function editUser(userId) {
+            try {
+                const response = await apiRequest(`/api/users/${userId}`);
+                if (response.success) {
+                    const data = response.data;
+                    const isAdminUser = data.username === 'admin';
+                    
+                    document.getElementById('userId').value = data.id;
+                    document.getElementById('userUsername').value = data.username;
+                    document.getElementById('userEmail').value = data.email;
+                    document.getElementById('userPassword').value = '';
+                    document.getElementById('userRole').value = data.role || 'user';
+                    
+                    // 如果是超级管理员账号，禁用有效期输入
+                    if (isAdminUser) {
+                        document.getElementById('validFrom').value = '';
+                        document.getElementById('validFrom').disabled = true;
+                        document.getElementById('validUntil').value = '';
+                        document.getElementById('validUntil').disabled = true;
+                    } else {
+                        document.getElementById('validFrom').value = data.valid_from || '';
+                        document.getElementById('validFrom').disabled = false;
+                        document.getElementById('validUntil').value = data.valid_until || '';
+                        document.getElementById('validUntil').disabled = false;
+                    }
+                    
+                    document.getElementById('modalTitle').textContent = '编辑用户';
+                    document.getElementById('userPassword').required = false;
+                    
+                    // 如果是超级管理员账号，禁用角色选择
+                    document.getElementById('userRole').disabled = isAdminUser;
+                    
+                    new bootstrap.Modal(document.getElementById('userModal')).show();
+                } else {
+                    showError(response.message);
+                }
+            } catch (error) {
+                console.error('Error loading user details:', error);
+                showError('加载用户详情失败');
+            }
+        }
+
+        // 保存用户
+        async function saveUser() {
+            const userId = document.getElementById('userId').value;
+            const username = document.getElementById('userUsername').value;
+            const email = document.getElementById('userEmail').value;
+            const password = document.getElementById('userPassword').value;
+            const role = document.getElementById('userRole').value;
+            const validFrom = document.getElementById('validFrom').value;
+            const validUntil = document.getElementById('validUntil').value;
+            
+            if (!username || !email) {
+                alert('用户名和邮箱为必填项！');
+                return;
+            }
+            
+            const userData = {
+                username,
+                email,
+                role: role || 'user'
+            };
+            
+            // 如果不是超级管理员账号，才设置有效期
+            if (username !== 'admin') {
+                userData.valid_from = validFrom || null;
+                userData.valid_until = validUntil || null;
+            }
+            
+            if (password) {
+                userData.password = password;
+            }
+            
+            try {
+                let url = '/api/users';
+                let method = 'POST';
+                
+                if (userId) {
+                    url = `/api/users/${userId}`;
+                    method = 'PUT';
+                }
+                
+                const data = await apiRequest(url, {
+                    method: method,
+                    body: JSON.stringify(userData)
+                });
+
+                if (data.success) {
+                    await loadUsers();
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
+                    modal.hide();
+                    showSuccess(userId ? '用户更新成功' : '用户创建成功');
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                console.error('Error saving user:', error);
+                showError('保存用户失败');
+            }
+        }
+
+        // 删除用户
+        async function deleteUser(userId) {
+            const currentUser = getCurrentUser();
+            const targetUser = await apiRequest(`/api/users/${userId}`);
+            
+            // 如果当前用户是 admin 且目标用户也是 admin，阻止删除
+            if (currentUser && currentUser.username === 'admin' && targetUser.data.username === 'admin') {
+                showError('不能删除 admin 账号');
+                return;
+            }
+            
+            if (!confirm('确定要删除这个用户吗？')) {
+                return;
+            }
+
+            try {
+                const data = await apiRequest(`/api/users/${userId}`, {
+                    method: 'DELETE'
+                });
+
+                if (data.success) {
+                    await loadUsers();
+                    showSuccess('用户删除成功');
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                showError('删除用户失败');
+            }
+        }
+
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+
+        // 切换用户状态
+        async function toggleUserStatus(userId, currentStatus) {
+            try {
+                const user = await apiRequest(`/api/users/${userId}`);
+                
+                // 如果是超级管理员账号，不允许修改状态
+                if (user.data.username === 'admin') {
+                    showError('不能修改超级管理员账号的状态');
+                    return;
+                }
+                
+                const newStatus = currentStatus === 1 ? 0 : 1;
+                const data = await apiRequest(`/api/users/${userId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (data.success) {
+                    await loadUsers();
+                    showSuccess('用户状态更新成功');
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                console.error('Error toggling user status:', error);
+                showError('更新用户状态失败');
+            }
+        }
+
+        // 获取账号有效期状态
+        function getValidityStatus(user) {
+            const now = new Date();
+            const validFrom = user.valid_from ? new Date(user.valid_from) : null;
+            const validUntil = user.valid_until ? new Date(user.valid_until) : null;
+
+            if (!validFrom && !validUntil) {
+                return {
+                    text: '永久有效',
+                    class: 'bg-success'
+                };
+            }
+
+            if (validFrom && now < validFrom) {
+                return {
+                    text: '未生效',
+                    class: 'bg-warning'
+                };
+            }
+
+            if (validUntil && now > validUntil) {
+                return {
+                    text: '已过期',
+                    class: 'bg-danger'
+                };
+            }
+
+            return {
+                text: '有效',
+                class: 'bg-success'
+            };
+        }
+
+        // 获取账号有效期状态显示
+        function getValidityStatusDisplay(user) {
+            const status = getValidityStatus(user);
+            let dateInfo = '';
+            
+            if (user.valid_from || user.valid_until) {
+                dateInfo = '<br><small class="text-muted">';
+                if (user.valid_from) {
+                    dateInfo += `从: ${user.valid_from}`;
+                }
+                if (user.valid_until) {
+                    dateInfo += `${user.valid_from ? '<br>' : ''}至: ${user.valid_until}`;
+                }
+                dateInfo += '</small>';
+            }
+            
+            return `<span class="badge ${status.class}">${status.text}</span>${dateInfo}`;
+        }
+
+        // 页面加载时检查认证状态并加载用户列表
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            await loadUsers();
+        });
+    </script>
+</body>
+</html> 

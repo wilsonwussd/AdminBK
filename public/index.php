@@ -29,6 +29,37 @@ $app = AppFactory::create();
 // 添加错误中间件
 $app->addErrorMiddleware(true, true, true);
 
+// 添加 CORS 中间件
+$app->add(function ($request, $handler) {
+    $response = $handler->handle($request);
+    
+    // 获取请求的 Origin
+    $origin = $request->getHeaderLine('Origin');
+    
+    // 允许的域名列表
+    $allowedOrigins = [
+        'https://xxzcqrmtfyhm.sealoshzh.site',
+        'http://xxzcqrmtfyhm.sealoshzh.site',
+        'http://localhost:8080'
+    ];
+    
+    // 如果请求来自允许的域名，则设置对应的 CORS 头
+    if (in_array($origin, $allowedOrigins)) {
+        return $response
+            ->withHeader('Access-Control-Allow-Origin', $origin)
+            ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+            ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
+            ->withHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    
+    return $response;
+});
+
+// OPTIONS 请求处理
+$app->options('/{routes:.+}', function ($request, $response) {
+    return $response;
+});
+
 // 添加全局中间件
 $app->add(new LogMiddleware());
 
@@ -38,6 +69,10 @@ $app->post('/api/logout', [UserController::class, 'logout'])->add(new AuthMiddle
 
 // 用户管理路由
 $app->get('/api/users', [UserController::class, 'list'])
+    ->add(new PermissionMiddleware('view_users'))
+    ->add(new AuthMiddleware());
+
+$app->get('/api/users/{id}', [UserController::class, 'get'])
     ->add(new PermissionMiddleware('view_users'))
     ->add(new AuthMiddleware());
 

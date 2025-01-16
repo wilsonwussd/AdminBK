@@ -23,11 +23,6 @@ class User extends Model
         'password'
     ];
 
-    public function role()
-    {
-        return $this->belongsTo(Role::class);
-    }
-
     public function isOnline()
     {
         return OnlineUser::where('user_id', $this->id)->exists();
@@ -35,6 +30,27 @@ class User extends Model
 
     public function hasPermission($permission)
     {
-        return $this->role && $this->role->hasPermission($permission);
+        // 如果是管理员，拥有所有权限
+        if ($this->role === 'admin') {
+            return true;
+        }
+
+        // 获取角色
+        $role = Role::where('name', $this->role)->first();
+        if (!$role) {
+            return false;
+        }
+
+        return $role->permissions->contains('name', $permission);
+    }
+
+    public function getPermissions()
+    {
+        if ($this->role === 'admin') {
+            return Permission::all()->pluck('name')->toArray();
+        }
+
+        $role = Role::where('name', $this->role)->first();
+        return $role ? $role->permissions->pluck('name')->toArray() : [];
     }
 } 
