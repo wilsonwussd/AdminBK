@@ -46,55 +46,58 @@
     </style>
 </head>
 <body>
-    <div class="d-flex">
-        <!-- 侧边栏 -->
-        <div class="sidebar">
-            <div class="user-info">
-                <i class="bi bi-person-circle"></i>
-                欢迎，<span id="currentUser"></span>
-            </div>
-            <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a class="nav-link active" href="#">
-                        <i class="bi bi-people"></i> 用户管理
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" onclick="logout()">
-                        <i class="bi bi-box-arrow-right"></i> 退出登录
-                    </a>
-                </li>
-            </ul>
-        </div>
-
-        <!-- 主要内容区域 -->
-        <div class="main-content flex-grow-1">
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>用户管理</h2>
-                    <button class="btn btn-primary" onclick="showAddUserModal()">
-                        <i class="bi bi-plus"></i> 添加用户
-                    </button>
+    <div class="container mt-4">
+        <div id="alertContainer"></div>
+        <div class="d-flex">
+            <!-- 侧边栏 -->
+            <div class="sidebar">
+                <div class="user-info">
+                    <i class="bi bi-person-circle"></i>
+                    欢迎，<span id="currentUser"></span>
                 </div>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">
+                            <i class="bi bi-people"></i> 用户管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="logout()">
+                            <i class="bi bi-box-arrow-right"></i> 退出登录
+                        </a>
+                    </li>
+                </ul>
+            </div>
 
-                <div class="card">
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover" id="userTable">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>用户名</th>
-                                        <th>邮箱</th>
-                                        <th>角色</th>
-                                        <th>状态</th>
-                                        <th>有效期状态</th>
-                                        <th>最后登录时间</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
+            <!-- 主要内容区域 -->
+            <div class="main-content flex-grow-1">
+                <div class="container-fluid">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>用户管理</h2>
+                        <button class="btn btn-primary" id="addUserBtn" onclick="showAddUserModal()">
+                            <i class="bi bi-plus"></i> 添加用户
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="userTable">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>用户名</th>
+                                            <th>邮箱</th>
+                                            <th>角色</th>
+                                            <th>状态</th>
+                                            <th>有效期状态</th>
+                                            <th>最后登录时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -123,8 +126,8 @@
                         </div>
                         <div class="mb-3">
                             <label for="userPassword" class="form-label">密码</label>
-                            <input type="password" class="form-control" id="userPassword">
-                            <small class="text-muted">编辑用户时如不修改密码请留空</small>
+                            <input type="password" class="form-control" id="userPassword" autocomplete="new-password">
+                            <small class="text-muted">出于安全考虑，不显示原密码。如需修改请输入新密码，不修改请留空</small>
                         </div>
                         <div class="mb-3">
                             <label for="userRole" class="form-label">角色</label>
@@ -164,45 +167,92 @@
         async function apiRequest(url, options = {}) {
             const token = localStorage.getItem('token');
             if (!token) {
-                window.location.href = '/login.html';
-                return;
-            }
-
-            const defaultOptions = {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            };
-
-            const response = await fetch(url, { ...defaultOptions, ...options });
-            const data = await response.json();
-
-            if (response.status === 401 || data.message === 'Token已失效，请重新登录') {
+                console.log('未找到 token，跳转到登录页面');
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 window.location.href = '/login.html';
                 return;
             }
 
-            return data;
+            // 确保 URL 是完整的
+            const baseUrl = 'https://xxzcqrmtfyhm.sealoshzh.site';
+            const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+
+            const defaultOptions = {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            };
+
+            try {
+                console.log('发送 API 请求:', fullUrl);
+                const response = await fetch(fullUrl, { ...defaultOptions, ...options });
+                console.log('API 响应状态:', response.status);
+                const data = await response.json();
+                console.log('API 响应数据:', data);
+
+                if (response.status === 401 || data.message === 'Token已失效，请重新登录') {
+                    console.log('Token 无效或过期，退出登录');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                return data;
+            } catch (error) {
+                console.error('API 请求失败:', error);
+                return { success: false, message: '请求失败，请检查网络连接' };
+            }
         }
 
         // 检查认证状态
         async function checkAuth() {
             const token = localStorage.getItem('token');
-            if (!token) {
+            const user = getCurrentUser();
+            
+            if (!token || !user) {
+                console.log('未找到 token 或用户信息，退出登录');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
                 window.location.href = '/login.html';
                 return;
             }
 
             try {
-                const data = await apiRequest('/api/users');
+                console.log('检查认证状态...');
+                const response = await fetch('/api/users', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401) {
+                    console.log('认证失败，退出登录');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const data = await response.json();
+                console.log('认证检查响应:', data);
+
                 if (!data.success) {
-                    throw new Error(data.message);
+                    console.log('认证检查失败:', data);
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login.html';
+                } else {
+                    console.log('认证检查成功');
                 }
             } catch (error) {
-                console.error('Authentication check failed:', error);
+                console.error('认证检查错误:', error);
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
                 window.location.href = '/login.html';
             }
         }
@@ -212,11 +262,20 @@
             const userStr = localStorage.getItem('user');
             if (userStr) {
                 try {
-                    return JSON.parse(userStr);
+                    const user = JSON.parse(userStr);
+                    // 确保至少有基本的用户信息
+                    if (!user.username) {
+                        console.error('用户信息不完整');
+                        return null;
+                    }
+                    console.log('当前用户信息:', user);
+                    return user;
                 } catch (e) {
+                    console.error('解析用户信息失败:', e);
                     return null;
                 }
             }
+            console.log('未找到用户信息');
             return null;
         }
 
@@ -229,10 +288,17 @@
                     tbody.innerHTML = '';
                     const currentUser = getCurrentUser();
                     
+                    // 根据当前用户角色控制"添加用户"按钮的显示
+                    const addUserBtn = document.querySelector('#addUserBtn');
+                    if (addUserBtn) {
+                        addUserBtn.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+                    }
+                    
                     data.data.forEach(user => {
-                        // 判断是否为超级管理员账号
                         const isAdminUser = user.username === 'admin';
-                        const isCurrentUserAdmin = currentUser && currentUser.username === 'admin';
+                        const isCurrentUser = currentUser && user.id === currentUser.id;
+                        const canEdit = currentUser.role === 'admin' || isCurrentUser;
+                        const canDelete = currentUser.role === 'admin' && !isAdminUser && !isCurrentUser;
                         
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
@@ -247,6 +313,7 @@
                                         永久启用
                                     </button>` :
                                     `<button class="btn btn-sm ${user.status ? 'btn-success' : 'btn-danger'}" 
+                                            ${currentUser.role !== 'admin' ? 'disabled' : ''}
                                             onclick="toggleUserStatus(${user.id}, ${user.status})">
                                         <i class="bi ${user.status ? 'bi-unlock' : 'bi-lock'}"></i>
                                         ${user.status ? '已启用' : '已禁用'}
@@ -256,10 +323,15 @@
                             <td>${isAdminUser ? '<span class="badge bg-success">永久有效</span>' : getValidityStatusDisplay(user)}</td>
                             <td>${user.last_login_time || '从未登录'}</td>
                             <td>
-                                <button class="btn btn-primary btn-sm" onclick="editUser(${user.id})">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                ${(!isAdminUser || !isCurrentUserAdmin) ? 
+                                ${canEdit ? 
+                                    `<button class="btn btn-primary btn-sm" onclick="editUser(${user.id})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>` : 
+                                    `<button class="btn btn-primary btn-sm" disabled>
+                                        <i class="bi bi-pencil"></i>
+                                    </button>`
+                                }
+                                ${canDelete ? 
                                     `<button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">
                                         <i class="bi bi-trash"></i>
                                     </button>` : 
@@ -290,10 +362,20 @@
         // 编辑用户
         async function editUser(userId) {
             try {
+                const currentUser = getCurrentUser();
                 const response = await apiRequest(`/api/users/${userId}`);
+                
                 if (response.success) {
                     const data = response.data;
+                    
+                    // 检查权限
+                    if (currentUser.role !== 'admin' && currentUser.id !== data.id) {
+                        showError('您没有权限编辑其他用户的信息');
+                        return;
+                    }
+                    
                     const isAdminUser = data.username === 'admin';
+                    const isCurrentUser = currentUser.id === data.id;
                     
                     document.getElementById('userId').value = data.id;
                     document.getElementById('userUsername').value = data.username;
@@ -301,24 +383,25 @@
                     document.getElementById('userPassword').value = '';
                     document.getElementById('userRole').value = data.role || 'user';
                     
-                    // 如果是超级管理员账号，禁用有效期输入
-                    if (isAdminUser) {
-                        document.getElementById('validFrom').value = '';
-                        document.getElementById('validFrom').disabled = true;
-                        document.getElementById('validUntil').value = '';
-                        document.getElementById('validUntil').disabled = true;
-                    } else {
+                    // 控制字段的可编辑性
+                    document.getElementById('userUsername').disabled = isAdminUser || isCurrentUser;
+                    document.getElementById('userRole').disabled = currentUser.role !== 'admin' || isAdminUser;
+                    document.getElementById('validFrom').disabled = isAdminUser;
+                    document.getElementById('validUntil').disabled = isAdminUser;
+                    
+                    if (!isAdminUser) {
                         document.getElementById('validFrom').value = data.valid_from || '';
-                        document.getElementById('validFrom').disabled = false;
                         document.getElementById('validUntil').value = data.valid_until || '';
-                        document.getElementById('validUntil').disabled = false;
                     }
                     
                     document.getElementById('modalTitle').textContent = '编辑用户';
                     document.getElementById('userPassword').required = false;
                     
-                    // 如果是超级管理员账号，禁用角色选择
-                    document.getElementById('userRole').disabled = isAdminUser;
+                    // 更新密码字段的提示文本
+                    const passwordHelpText = document.querySelector('#userPassword + small');
+                    if (passwordHelpText) {
+                        passwordHelpText.textContent = '如需修改密码请输入新密码，不修改请留空';
+                    }
                     
                     new bootstrap.Modal(document.getElementById('userModal')).show();
                 } else {
@@ -339,29 +422,30 @@
             const role = document.getElementById('userRole').value;
             const validFrom = document.getElementById('validFrom').value;
             const validUntil = document.getElementById('validUntil').value;
-            
-            if (!username || !email) {
-                alert('用户名和邮箱为必填项！');
-                return;
-            }
-            
-            const userData = {
-                username,
-                email,
-                role: role || 'user'
-            };
-            
-            // 如果不是超级管理员账号，才设置有效期
-            if (username !== 'admin') {
-                userData.valid_from = validFrom || null;
-                userData.valid_until = validUntil || null;
-            }
-            
-            if (password) {
-                userData.password = password;
-            }
+
+            const currentUser = getCurrentUser();
             
             try {
+                let data = {
+                    email,
+                    username
+                };
+
+                // 如果是管理员，可以修改更多字段
+                if (currentUser.role === 'admin') {
+                    data = {
+                        ...data,
+                        role,
+                        valid_from: validFrom || null,
+                        valid_until: validUntil || null
+                    };
+                }
+
+                // 如果提供了密码，添加到请求数据中
+                if (password) {
+                    data.password = password;
+                }
+
                 let url = '/api/users';
                 let method = 'POST';
                 
@@ -369,55 +453,64 @@
                     url = `/api/users/${userId}`;
                     method = 'PUT';
                 }
-                
-                const data = await apiRequest(url, {
+
+                const response = await apiRequest(url, {
                     method: method,
-                    body: JSON.stringify(userData)
+                    body: JSON.stringify(data)
                 });
 
-                if (data.success) {
-                    await loadUsers();
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
-                    modal.hide();
+                if (response.success) {
+                    $('#userModal').modal('hide');
+                    loadUsers();
                     showSuccess(userId ? '用户更新成功' : '用户创建成功');
                 } else {
-                    showError(data.message);
+                    showError(response.message || '保存失败');
                 }
             } catch (error) {
-                console.error('Error saving user:', error);
-                showError('保存用户失败');
+                showError(error.message || '保存失败');
             }
         }
 
         // 删除用户
         async function deleteUser(userId) {
             const currentUser = getCurrentUser();
-            const targetUser = await apiRequest(`/api/users/${userId}`);
+            const response = await apiRequest(`/api/users/${userId}`);
             
-            // 如果当前用户是 admin 且目标用户也是 admin，阻止删除
-            if (currentUser && currentUser.username === 'admin' && targetUser.data.username === 'admin') {
-                showError('不能删除 admin 账号');
-                return;
-            }
-            
-            if (!confirm('确定要删除这个用户吗？')) {
-                return;
-            }
-
-            try {
-                const data = await apiRequest(`/api/users/${userId}`, {
-                    method: 'DELETE'
-                });
-
-                if (data.success) {
-                    await loadUsers();
-                    showSuccess('用户删除成功');
-                } else {
-                    showError(data.message);
+            if (response.success) {
+                const targetUser = response.data;
+                
+                // 权限检查
+                if (currentUser.role !== 'admin') {
+                    showError('您没有权限删除用户');
+                    return;
                 }
-            } catch (error) {
-                console.error('Error deleting user:', error);
-                showError('删除用户失败');
+                
+                if (targetUser.username === 'admin') {
+                    showError('不能删除超级管理员账号');
+                    return;
+                }
+                
+                if (currentUser.id === targetUser.id) {
+                    showError('不能删除自己的账号');
+                    return;
+                }
+                
+                if (confirm('确定要删除该用户吗？')) {
+                    try {
+                        const response = await apiRequest(`/api/users/${userId}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (response.success) {
+                            loadUsers();
+                            showSuccess('用户删除成功');
+                        } else {
+                            showError(response.message || '删除失败');
+                        }
+                    } catch (error) {
+                        showError(error.message || '删除失败');
+                    }
+                }
             }
         }
 
@@ -509,11 +602,48 @@
             return `<span class="badge ${status.class}">${status.text}</span>${dateInfo}`;
         }
 
-        // 页面加载时检查认证状态并加载用户列表
-        document.addEventListener('DOMContentLoaded', async () => {
+        // 页面加载时检查认证
+        document.addEventListener('DOMContentLoaded', async function() {
             await checkAuth();
-            await loadUsers();
+            const currentUser = getCurrentUser();
+            if (currentUser) {
+                document.getElementById('currentUser').textContent = currentUser.username;
+                loadUsers();
+            }
         });
+
+        // 添加错误处理函数
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger alert-dismissible fade show';
+            errorDiv.role = 'alert';
+            errorDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.querySelector('#alertContainer').appendChild(errorDiv);
+            
+            // 3秒后自动关闭
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 3000);
+        }
+
+        // 添加成功提示函数
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'alert alert-success alert-dismissible fade show';
+            successDiv.role = 'alert';
+            successDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.querySelector('#alertContainer').appendChild(successDiv);
+            
+            setTimeout(() => {
+                successDiv.remove();
+            }, 3000);
+        }
     </script>
 </body>
 </html> 
